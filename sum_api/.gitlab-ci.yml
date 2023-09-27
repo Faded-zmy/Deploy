@@ -1,0 +1,39 @@
+stages:
+    - BuildImage
+    - DeployDev
+variables:
+    VARIABLES_FILE: ./ai-infogpt.txt
+BuildImage:
+    stage: BuildImage
+    script:
+        - shopt -s expand_aliases
+        - PROJECT_NAME="memorylab-ai"
+        - BUILD_SERVERS="ai-infogpt"
+        - DATETAG=$(date +%Y%m%d%H%M)
+        - COMMITTER=$(git log -1 --format=%h)
+        - IMAGE_TAG="${DATETAG}-${COMMITTER}"
+        - echo "-p ${PROJECT_NAME} -n ${BUILD_SERVERS} -v ${IMAGE_TAG} -a build ${GITLAB_USER_EMAIL} ${CI_JOB_URL} ${CI_PROJECT_URL}"
+        - sh /data/ops/service_build/docker-buildimage.sh -p ${PROJECT_NAME} -n ${BUILD_SERVERS} -v ${IMAGE_TAG} -a build ${GITLAB_USER_EMAIL} ${CI_JOB_URL} ${CI_PROJECT_URL}
+        - echo "export IMAGE_TAG=$IMAGE_TAG" > $VARIABLES_FILE
+        - echo "export PROJECT_NAME=$PROJECT_NAME" >> $VARIABLES_FILE
+        - echo "export BUILD_SERVERS=$BUILD_SERVERS" >> $VARIABLES_FILE
+    artifacts:
+        paths:
+            - $VARIABLES_FILE
+    only:
+        - deploy_to_env_dev
+    tags:
+        - ops-build
+DeployDev:
+    stage: DeployDev
+    script:
+        - source $VARIABLES_FILE
+        - echo "${PROJECT_NAME}"
+        - echo "${BUILD_SERVERS}"
+        - echo "${IMAGE_TAG}"
+        - echo "-e dev -p ${PROJECT_NAME} -n ${BUILD_SERVERS} -v ${IMAGE_TAG} -a start ${GITLAB_USER_EMAIL} ${CI_JOB_URL}"
+        - sh /data/ops/service_deploy/deploy.sh -e dev -p ${PROJECT_NAME} -n ${BUILD_SERVERS} -v ${IMAGE_TAG} -a start ${GITLAB_USER_EMAIL} ${CI_JOB_URL}
+    only:
+        - deploy_to_env_dev
+    tags:
+        - ops-build
