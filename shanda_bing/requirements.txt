@@ -1,0 +1,6 @@
+uvicorn
+func_timeout
+fastapi
+openai
+tiktoken
+httpx
